@@ -1,20 +1,5 @@
 # Databricks notebook source
-# Setup
-import re
-current_user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
-if current_user.rfind('@') > 0:
-  current_user_no_at = current_user[:current_user.rfind('@')]
-else:
-  current_user_no_at = current_user
-current_user_no_at = re.sub(r'\W+', '_', current_user_no_at)
-
-# COMMAND ----------
-
-# Define catalog and schema to use
-catalog = f'{current_user_no_at}_demo_catalog'
-schema = 'telco_reliability'
-current_user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
-print(current_user)
+# MAGIC %run ./.setup
 
 # COMMAND ----------
 
@@ -25,8 +10,7 @@ print(current_user)
 # COMMAND ----------
 
 # DBTITLE 1,Read in gold table from Unity Catalog
-spark.sql(f'USE {catalog}.{schema}')
-df_hour = spark.table('cdr_stream_hour_gold')
+hour_gold = spark.table('cdr_hour_gold')
 
 # COMMAND ----------
 
@@ -36,7 +20,17 @@ df_hour = spark.table('cdr_stream_hour_gold')
 # COMMAND ----------
 
 # Filter data to only keep desired timeframe and drop columns we don't want to use in our model
-df_hour_features = df_hour.filter(df_hour.datetime >= '2023-05-01').filter(df_hour.datetime < '2023-05-15').drop('window')
+start_date = "2023-05-01"
+end_date = "2023-05-15"
+
+hour_features = (
+    hour_gold
+    .filter(
+        (F.col("datetime") >= start_date) &
+        (F.col("datetime") < end_date))
+    .drop("window"))
+
+display(hour_features)
 
 # COMMAND ----------
 
@@ -57,24 +51,27 @@ df_hour_features = df_hour.filter(df_hour.datetime >= '2023-05-01').filter(df_ho
 # COMMAND ----------
 
 from databricks.feature_store import FeatureStoreClient
-fs = FeatureStoreClient()
-tablename = 'cdr_stream_hour_features'
-try:
-  #drop table if exists
-  fs.drop_table(f'{catalog}.{schema}.{tablename}')
-except:
-  pass
-#Note: You might need to delete the FS table using the UI
-feature_table = fs.create_table(
-  name=f'{catalog}.{schema}.{tablename}',
-  primary_keys=["datetime", "towerId"],
-  timestamp_keys=["datetime"],
-  schema=df_hour_features.schema,
-  description='These features are derived from the cdr_stream_hour_gold table in the lakehouse. We filtered datetime to be from 2023-05-01 to 2023-05-23.'
-)
 
-fs.write_table(df=df_hour_features, name=f'{catalog}.{schema}.{tablename}', mode='overwrite')
-features = fs.read_table(f'{catalog}.{schema}.{tablename}')
+fs = FeatureStoreClient()
+tablename = "cdr_hour_features"
+try:
+    # drop table if exists
+    fs.drop_table(f"{catalog}.{schema}.{tablename}")
+except:
+    pass
+
+# Note: You might need to delete the FS table using the UI
+feature_table = fs.create_table(
+    name=f"{catalog}.{schema}.{tablename}",
+    primary_keys=["towerId", "datetime"],
+    timestamp_keys=["datetime"],
+    schema=hour_features.schema,
+    description=f"These features are derived from the cdr_stream_hour_gold table in the lakehouse. We filtered datetime to be from {start_date} to {end_date}.")
+
+fs.write_table(
+    df=hour_features, name=f"{catalog}.{schema}.{tablename}", mode="overwrite")
+
+features = fs.read_table(f"{catalog}.{schema}.{tablename}")
 display(features)
 
 # COMMAND ----------
@@ -113,31 +110,23 @@ display(features)
 
 # COMMAND ----------
 
+# DBTITLE 1,Start a AutoML run 
 from databricks import automl
 from datetime import datetime
 
-# COMMAND ----------
-
-# DBTITLE 1,Start a AutoML run 
-from databricks import automl
 xp_path = f"/Users/{current_user}/databricks_automl/{schema}"
-xp_name = f"automl_{schema}_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}"
+xp_name = f"automl_{schema}_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}"
 automl_run = automl.forecast(
-    experiment_name = xp_name,
-    experiment_dir = xp_path,
-    dataset = fs.read_table(f'{catalog}.{schema}.{tablename}'),
-    target_col = "totalRecords_CDR",
-    timeout_minutes = 10,
-    time_col = 'datetime',
-    country_code = "US",                                        
-    frequency = 'h',
-    horizon = 168,
-    identity_col = 'towerId',
-    # output_database: Optional[str] = None,                           
-    primary_metric = "smape"
-    ) 
-
-
-# COMMAND ----------
-
+    experiment_name=xp_name,
+    experiment_dir=xp_path,
+    dataset=fs.read_table(f"{catalog}.{schema}.{tablename}"),
+    target_col="totalRecords_CDR",
+    timeout_minutes=10,
+    time_col="datetime",
+    country_code="US",
+    frequency="h",
+    horizon=168,
+    identity_col="towerId",
+    output_database=f"{catalog}.{user_schema}",
+    primary_metric="smape") 
 

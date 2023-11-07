@@ -32,6 +32,7 @@ current_user_no_at = re.sub(r'\W+', '_', current_user_no_at)
 # COMMAND ----------
 
 catalog = f'{current_user_no_at}_demo_catalog'
+catalog = "abs_dev"
 schema = 'telco_reliability'
 table_name = 'cdr_stream_hour_features'
 model_name = f"telco_forecast_{current_user_no_at}"
@@ -71,7 +72,7 @@ mlflow.set_registry_uri('databricks-uc')
 
 
 
-#                                                                                                Alias
+#            Alias
 #                                                                                  Model name       |
 # #Get packaged udf for prediction                                                                                        |          |
 # make_forecast_udf = mlflow.pyfunc.spark_udf(spark, model_uri=f"models:/{catalog}.{schema}.{model_name}@prod", result_type='double')
@@ -131,10 +132,6 @@ forecast_pd [['ds', 'yhat_lower', 'yhat_upper', 'yhat', 'towerId']].head()
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 dataset = spark.table(table_name).select().limit(3).toPandas()
 #Make it a string to send to the inference endpoint
 # dataset['last_transaction'] = dataset['last_transaction'].astype(str)
@@ -190,7 +187,3 @@ score_model(dataset)
 # MAGIC <img width="800px" src="https://raw.githubusercontent.com/QuentinAmbard/databricks-demo/main/retail/resources/images/lakehouse-retail/lakehouse-retail-churn-dbsql-prediction-dashboard.png">
 # MAGIC
 # MAGIC <a href='/sql/dashboards/e9cbce37-da29-482d-962c-5b63dc5fac3b'>Open the Churn prediction DBSQL dashboard</a> | [Go back to the introduction]($../00-churn-introduction-lakehouse)
-
-# COMMAND ----------
-
-

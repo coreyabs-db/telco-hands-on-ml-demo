@@ -30,7 +30,3 @@
 # MAGIC Notebook 05 (no job creation yet, more just instructions)
 # MAGIC - Retraining workflow
 # MAGIC
-
-# COMMAND ----------
-
-
