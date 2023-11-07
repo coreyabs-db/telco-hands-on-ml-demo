@@ -62,10 +62,14 @@
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC Note: This is just an example. You won't have permissions to run this as-is. Please instead try scheduling one or more Notebook tasks from the workflows UI.
+
+# COMMAND ----------
+
 # DBTITLE 1,Template script to create a job from notebook 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.jobs import Task, Note
-bookTask, Source
+from databricks.sdk.service.jobs import NotebookTask, NotebookTaskSource
 
 w = WorkspaceClient()
 
@@ -86,7 +90,7 @@ j = w.jobs.create(
       notebook_task = NotebookTask(
         base_parameters = dict(""),
         notebook_path = notebook_path,
-        source = Source("WORKSPACE")
+        source = NotebookTaskSource("WORKSPACE")
       ),
       task_key = task_key
     )
