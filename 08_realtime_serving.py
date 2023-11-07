@@ -88,12 +88,12 @@ lr.fit(train_x, train_y)
 # MAGIC
 # MAGIC Select the same model from Unity Catalog and select whichever version you want to use. 
 # MAGIC
-# MAGIC
+# MAGIC Note: for this session, no need to actually click the final create button. We can simply share the one I've already created for us.
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Note: for both of these steps, there are API's you can use to automate this step. We just wanted to give you some exposure to the UI as well.
+# MAGIC Note: for both of these steps, there are [API's](https://docs.databricks.com/api/workspace/servingendpoints) you can use to automate this step. We just wanted to give you some exposure to the UI as well.
 
 # COMMAND ----------
 
@@ -102,7 +102,7 @@ lr.fit(train_x, train_y)
 
 # COMMAND ----------
 
-model_serving_endpoint_name = "your endpoint name"
+model_serving_endpoint_name = "diabetes-example-endpoint"
 
 # COMMAND ----------
 
@@ -133,11 +133,6 @@ def score_model(data_json: dict):
         raise Exception(f"Request failed with status {response.status_code}, {response.text}")
     return response.json()
   
-payload_json = {
-  "dataframe_records": [
-    # Users in New York, see high scores for Florida 
-    {"user_id": 4, "booking_date": "2022-12-22", "destination_id": 16, "user_latitude": 40.71277, "user_longitude": -74.005974}, 
-    # Users in California, see high scores for Hawaii 
-    {"user_id": 39, "booking_date": "2022-12-22", "destination_id": 1, "user_latitude": 37.77493, "user_longitude": -122.41942} 
-  ]
-}
+payload_json = { "dataframe_records": test[:5].to_dict(orient="records") }
+
+score_model(payload_json)
