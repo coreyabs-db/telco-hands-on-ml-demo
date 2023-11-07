@@ -172,7 +172,7 @@ def fitForecastHourly(towerId_row):
 
     # take a segment of two weeks with hour granularity
     df = (
-      spark.table("telco.reliability.cdr_day_gold")
+      spark.table("telco.reliability.cdr_hour_gold")
       .filter(
           (F.col("towerId") == towerId) &
           (F.col("datetime") >= '2023-05-01') & 
@@ -327,7 +327,7 @@ display(results)
 # 1) here we have a regular job every hour to calculate CDR metrics so that the last hour can be put through the anomoly detection function
 currentTimeWindow = "2023-05-15T00:00:00.000+0000"
 df_current = (
-    spark.table("telco.reliability.cdr_day_gold")
+    spark.table("telco.reliability.cdr_hour_gold")
     .filter(F.col("datetime") == currentTimeWindow))
 #spark.sql("SELECT * FROM telco.reliability.cdr_day_gold WHERE datetime = '{}'".format(currentTimeWindow))
 
