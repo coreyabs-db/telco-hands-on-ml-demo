@@ -27,10 +27,10 @@ current_user_no_at = re.sub(r"\W+", "_", current_user_no_at)
 
 # COMMAND ----------
 
-catalog = "abs_dev"
-telco_schema = "telco_reliability"
-churn_schema = "telco_reliability"
-user_schema = "telco_reliability"
+catalog = "telco"
+reliability_schema = "reliability"
+churn_schema = "churn"
+user_schema = current_user_no_at
 schema = user_schema
 
 spark.sql(f"USE CATALOG {catalog}")
@@ -39,7 +39,7 @@ spark.sql(f"USE SCHEMA {user_schema}")
 
 print(f"using catalog {catalog}")
 print(f"using user_schema {user_schema}")
-print(f"using telco_schema {telco_schema}")
+print(f"using reliability_schema {reliability_schema}")
 print(f"using churn_schema {churn_schema}")
 
 # COMMAND ----------

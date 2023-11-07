@@ -45,7 +45,7 @@ towerIds = spark.createDataFrame(data=towerIds_list, schema=towerIds_cols)
 tower_id = towerIds_list[0][0]
 target_year = 2023
 df = (
-    spark.table("cdr_day_gold")
+    spark.table("telco.reliability.cdr_day_gold")
     .withColumn("ds", F.col("datetime").cast("date"))
     .filter((F.col("towerId") == tower_id) & (F.year("datetime") == target_year))
     .groupBy("ds")
@@ -69,7 +69,7 @@ def fitForecastDaily(towerId_row):
 
         # querying from the daily gold table to get total amount of activity by tower and date
         df = (
-            spark.table("cdr_day_gold")
+            spark.table("telco.reliability.cdr_day_gold")
             .withColumn("ds", F.col("datetime").cast("date"))
             .filter(
                 (F.col("towerId") == tower_id) &
@@ -171,7 +171,7 @@ def fitForecastHourly(towerId_row):
 
     # take a segment of two weeks with hour granularity
     df = (
-      spark.table("cdr_hour_gold")
+      spark.table("telco.reliability.cdr_day_gold")
       .filter(
           (F.col("towerId") == towerId) &
           (F.col("datetime") >= '2023-05-01') & 
@@ -289,7 +289,7 @@ result_schema = StructType([
     StructField("yhat_lower", FloatType())])
 
 tower_activity_hourly_history = (
-    spark.table("cdr_hour_gold")
+    spark.table("telco.reliability.cdr_hour_gold")
     .withColumnRenamed("datetime", "ds")
     .filter(
         (F.col("datetime") >= "2023-05-01") & 
@@ -298,21 +298,6 @@ tower_activity_hourly_history = (
         F.sum("totalRecords_CDR").alias("y"))
     .repartition(sc.defaultParallelism, ["towerId"])
     .cache())
-
-
-# sql_statement = """
-#   SELECT
-#     towerId,
-#     datetime as ds,
-#     sum(totalRecords_CDR) as y
-#   FROM cdr_hour_gold 
-#   WHERE datetime >= '2023-05-01' and datetime < '2023-05-15'
-#   GROUP BY towerId, ds
-#   ORDER BY towerId, ds
-# """
-
-# tower_activity_hourly_history = (
-#     spark.sql(sql_statement).repartition(sc.defaultParallelism, ["towerId"])).cache()
 
 results = (
     tower_activity_hourly_history
@@ -340,7 +325,10 @@ display(results)
 # now for anomoly detection
 # 1) here we have a regular job every hour to calculate CDR metrics so that the last hour can be put through the anomoly detection function
 currentTimeWindow = "2023-05-15T00:00:00.000+0000"
-df_current = spark.sql("SELECT * FROM cdr_hour_gold WHERE datetime = '{}'".format(currentTimeWindow))
+df_current = (
+    spark.table("telco.reliability.cdr_day_gold")
+    .filter(F.col("datetime") == currentTimeWindow))
+#spark.sql("SELECT * FROM telco.reliability.cdr_day_gold WHERE datetime = '{}'".format(currentTimeWindow))
 
 
 def anomolyDetectUDF_Func(actual, forecast_min, forecast_max):
@@ -365,8 +353,8 @@ anomolyImportanceUDF = F.udf(anomolyImportanceUDF_Func)
 
 def isAnomoly(df_current):
     mostRecentTraining = spark.sql(
-        "SELECT training_date FROM cdr_hour_forecast GROUP BY training_date ORDER BY training_date DESC LIMIT 1"
-    )
+        """SELECT training_date FROM cdr_hour_forecast 
+        GROUP BY training_date ORDER BY training_date DESC LIMIT 1""")
     currentTrainingDatetime = mostRecentTraining.collect()[0]["training_date"]
     currentTimeWindow = df_current.select(F.first("datetime")).collect()[0][
         "first(datetime)"]

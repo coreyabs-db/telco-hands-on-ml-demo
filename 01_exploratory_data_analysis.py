@@ -48,6 +48,11 @@
 
 # COMMAND ----------
 
+spark.sql(f"use schema {reliability_schema}")
+print(f"for this notebook, using {reliability_schema} schema")
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC The CDR bronze records were loaded as follows:
 # MAGIC

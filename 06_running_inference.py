@@ -14,41 +14,7 @@
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## TO BE COMPLETED 1)inferencing with spark 2)real time scoring.
-# MAGIC notebook 04.5 deploys model to an endpoint but needs to test out scoring
-
-# COMMAND ----------
-
-# Setup
-import re
-current_user = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('user')
-if current_user.rfind('@') > 0:
-  current_user_no_at = current_user[:current_user.rfind('@')]
-else:
-  current_user_no_at = current_user
-current_user_no_at = re.sub(r'\W+', '_', current_user_no_at)
-
-# COMMAND ----------
-
-catalog = f'{current_user_no_at}_demo_catalog'
-catalog = "abs_dev"
-schema = 'telco_reliability'
-table_name = 'cdr_stream_hour_features'
-model_name = f"telco_forecast_{current_user_no_at}"
-
-
-# COMMAND ----------
-
-import mlflow
-from pyspark.sql.functions import pandas_udf, PandasUDFType
-from pyspark.sql.types import *
-
-spark.sql(f'USE CATALOG {catalog}')
-spark.sql(f'USE SCHEMA {schema}')
-
-#Use Databricks Unity Catalog to save our model
-mlflow.set_registry_uri('databricks-uc')   
+# MAGIC %run ./.setup
 
 # COMMAND ----------
 
@@ -86,7 +52,9 @@ mlflow.set_registry_uri('databricks-uc')
 
 # COMMAND ----------
 
-loaded_model = mlflow.pyfunc.load_model(model_uri=f"models:/{catalog}.{schema}.{model_name}@prod")
+model_name = f"telco_forecast_{current_user_no_at}"
+model_uri = f"models:/{catalog}.{schema}.{model_name}@Champion"
+loaded_model = mlflow.pyfunc.load_model(model_uri=model_uri)
 
 # COMMAND ----------
 
@@ -132,10 +100,22 @@ forecast_pd [['ds', 'yhat_lower', 'yhat_upper', 'yhat', 'towerId']].head()
 
 # COMMAND ----------
 
-dataset = spark.table(table_name).select().limit(3).toPandas()
-#Make it a string to send to the inference endpoint
-# dataset['last_transaction'] = dataset['last_transaction'].astype(str)
-dataset
+model = loaded_model._model_impl.python_model
+col_types = [StructField(f"{n}", FloatType()) for n in model.get_reserved_cols()]
+col_types.append(StructField("ds",TimestampType()))
+col_types.append(StructField("ts_id",StringType()))
+result_schema = StructType(col_types)
+
+future_df = model.make_future_dataframe(include_history=False)
+future_df["ts_id"] = future_df[id_cols].apply(tuple, axis=1)
+future_df = future_df.rename(columns={time_col: "ds"})
+future_df.head()
+
+# COMMAND ----------
+
+# Predict future with the default horizon
+forecast_pd = future_df.groupby(id_cols).apply(lambda df: model._predict_impl(df, model._horizon)).reset_index()
+display(forecast_pd)
 
 # COMMAND ----------
 
@@ -161,29 +141,3 @@ def score_model(dataset):
 
 #Deploy your model and uncomment to run your inferences live!
 score_model(dataset)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC
-# MAGIC # Next step: Leverage inferences and automate actions to increase revenue
-# MAGIC
-# MAGIC ## Automate action to reduce churn based on predictions
-# MAGIC
-# MAGIC We now have an end 2 end data pipeline analizing and predicting churn. We can now easily trigger actions to reduce the churn based on our business:
-# MAGIC
-# MAGIC - Send targeting email campaign to the customer the most likely to churn
-# MAGIC - Phone campaign to discuss with our customers and understand what's going
-# MAGIC - Understand what's wrong with our line of product and fixing it
-# MAGIC
-# MAGIC These actions are out of the scope of this demo and simply leverage the Churn prediction field from our ML model.
-# MAGIC
-# MAGIC ## Track churn impact over the next month and campaign impact
-# MAGIC
-# MAGIC Of course, this churn prediction can be re-used in our dashboard to analyse future churn and measure churn reduction. 
-# MAGIC
-# MAGIC The pipeline created with the Lakehouse will offer a strong ROI: it took us a few hours to setup this pipeline end 2 end and we have potential gain for $129,914 / month!
-# MAGIC
-# MAGIC <img width="800px" src="https://raw.githubusercontent.com/QuentinAmbard/databricks-demo/main/retail/resources/images/lakehouse-retail/lakehouse-retail-churn-dbsql-prediction-dashboard.png">
-# MAGIC
-# MAGIC <a href='/sql/dashboards/e9cbce37-da29-482d-962c-5b63dc5fac3b'>Open the Churn prediction DBSQL dashboard</a> | [Go back to the introduction]($../00-churn-introduction-lakehouse)

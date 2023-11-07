@@ -10,7 +10,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Read in gold table from Unity Catalog
-hour_gold = spark.table('cdr_hour_gold')
+hour_gold = spark.table('telco.reliability.cdr_hour_gold')
 
 # COMMAND ----------
 
@@ -115,7 +115,7 @@ from databricks import automl
 from datetime import datetime
 
 xp_path = f"/Users/{current_user}/databricks_automl/{schema}"
-xp_name = f"automl_{schema}_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}"
+xp_name = f"automl_{schema}_{datetime.now().strftime('%Y-%m-%d_%H:%M:%S')}"
 automl_run = automl.forecast(
     experiment_name=xp_name,
     experiment_dir=xp_path,

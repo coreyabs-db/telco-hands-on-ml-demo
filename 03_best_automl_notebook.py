@@ -40,7 +40,7 @@ os.makedirs(input_temp_dir)
 
 # Download the artifact and read it into a pandas DataFrame
 input_data_path = mlflow.artifacts.download_artifacts(
-    run_id="66585519425940cb8db83c43aea6965a",
+    run_id="eee141bee7524e18820b92ef1d659f51",
     artifact_path="data",
     dst_path=input_temp_dir)
 
@@ -143,7 +143,7 @@ def prophet_training(history_pd):
         num_folds=5,
         max_eval=10,
         trial_timeout=530,
-        random_state=300783239,
+        random_state=806058593,
         is_parallel=run_parallel)
 
     results_pd = hyperopt_estim.fit(history_pd)
@@ -170,7 +170,7 @@ from databricks.automl_runtime.forecast.prophet.model import (
 )
 
 with mlflow.start_run(
-    experiment_id="3031282363601977", run_name="Prophet"
+    experiment_id="2154681256959302", run_name="Prophet"
 ) as mlflow_run:
     mlflow.set_tag("estimator_name", "Prophet")
     mlflow.log_param("holiday_country", "US")
