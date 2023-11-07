@@ -32,18 +32,17 @@
 # COMMAND ----------
 
 # MAGIC %md ### Scaling inferences using Spark 
-# MAGIC We'll first see how it can be loaded as a spark UDF and called directly in a SQL function:
-
-# COMMAND ----------
-
-
-
-#            Alias
-#                                                                                  Model name       |
-# #Get packaged udf for prediction                                                                                        |          |
-# make_forecast_udf = mlflow.pyfunc.spark_udf(spark, model_uri=f"models:/{catalog}.{schema}.{model_name}@prod", result_type='double')
-# #Register the function to use in SQL
-# spark.udf.register("make_forecast", make_forecast_udf)
+# MAGIC We'll first see how it can be loaded as a spark UDF and called directly in a SQL function. 
+# MAGIC
+# MAGIC     # Alias - Model name - Get packaged udf for prediction
+# MAGIC     model_uri = f"models:/{catalog}.{schema}.{model_name}@Champion"
+# MAGIC     make_forecast_udf = mlflow.pyfunc.spark_udf(
+# MAGIC       spark, model_uri=model_uri, result_type='double')
+# MAGIC
+# MAGIC     # Register the function to use in SQL
+# MAGIC     spark.udf.register("make_forecast", make_forecast_udf)
+# MAGIC
+# MAGIC We've disabled it here for now, but this gives you a rough example of how to go about it.
 
 # COMMAND ----------
 
@@ -109,35 +108,10 @@ result_schema = StructType(col_types)
 future_df = model.make_future_dataframe(include_history=False)
 future_df["ts_id"] = future_df[id_cols].apply(tuple, axis=1)
 future_df = future_df.rename(columns={time_col: "ds"})
-future_df.head()
+display(future_df)
 
 # COMMAND ----------
 
 # Predict future with the default horizon
 forecast_pd = future_df.groupby(id_cols).apply(lambda df: model._predict_impl(df, model._horizon)).reset_index()
 display(forecast_pd)
-
-# COMMAND ----------
-
-# DBTITLE 1,Call the REST API deployed using standard python
-import os
-import requests
-import numpy as np
-import pandas as pd
-import json
-
-model_endpoint_name = model_name
-
-
-def score_model(dataset):
-  url = f'https://{dbutils.notebook.entry_point.getDbutils().notebook().getContext().browserHostName().get()}/serving-endpoints/{model_endpoint_name}/invocations'
-  headers = {'Authorization': f'Bearer {dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()}', 'Content-Type': 'application/json'}
-  ds_dict = {'dataframe_split': dataset.to_dict(orient='split')}
-  data_json = json.dumps(ds_dict, allow_nan=True)
-  response = requests.request(method='POST', headers=headers, url=url, data=data_json)
-  if response.status_code != 200:
-    raise Exception(f'Request failed with status {response.status_code}, {response.text}')
-  return response.json()
-
-#Deploy your model and uncomment to run your inferences live!
-score_model(dataset)

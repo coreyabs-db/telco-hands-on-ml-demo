@@ -79,6 +79,7 @@ def fitForecastDaily(towerId_row):
         
         # do the actual fit in Pandas
         pandas_df = df.toPandas()
+
         model.fit(pandas_df)
 
         def extract_params(pr_model):
